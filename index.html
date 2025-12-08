@@ -35,7 +35,7 @@
                     <h2>📁 Dataset</h2>
                     <div class="dataset-count">
                         <div class="count" id="pairCount">0</div>
-                        <small>pairs in memory</small>
+                        <small id="countLabel">pairs in memory</small>
                     </div>
                     <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
                         <button class="btn btn-primary" onclick="downloadZIP()">📥 Download ZIP</button>
@@ -72,7 +72,7 @@
                             <input type="checkbox" id="useVisionCaption" checked>
                             <span>Vision Captions</span>
                         </label>
-                        <small>Use AI to describe the END image</small>
+                        <small>Use AI to describe the generated images</small>
                     </div>
 
                     <div class="form-group">
@@ -97,17 +97,59 @@
                         <p>🚀 <strong>Static version</strong>: Runs entirely in your browser! Just describe what you want, AI generates everything.</p>
                     </div>
 
+                    <!-- Mode Selector -->
+                    <div class="form-group">
+                        <label>🎯 Generation Mode</label>
+                        <div class="mode-selector">
+                            <button type="button" class="mode-btn active" data-mode="pair" onclick="setMode('pair')">
+                                <span class="mode-icon">🔄</span>
+                                <span class="mode-label">Pair Mode</span>
+                                <span class="mode-desc">START → END transformation</span>
+                            </button>
+                            <button type="button" class="mode-btn" data-mode="single" onclick="setMode('single')">
+                                <span class="mode-icon">🖼️</span>
+                                <span class="mode-label">Single Image</span>
+                                <span class="mode-desc">Style/Aesthetic LoRA</span>
+                            </button>
+                            <button type="button" class="mode-btn" data-mode="reference" onclick="setMode('reference')">
+                                <span class="mode-icon">📷</span>
+                                <span class="mode-label">Reference Image</span>
+                                <span class="mode-desc">Variations from uploaded image</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reference Image Upload (hidden by default) -->
+                    <div id="referenceUploadSection" class="form-group hidden">
+                        <label>📷 Reference Image</label>
+                        <div class="reference-upload">
+                            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('referenceInput').click()">
+                                <input type="file" id="referenceInput" accept="image/*" style="display:none" onchange="handleReferenceUpload(event)">
+                                <div class="upload-placeholder" id="uploadPlaceholder">
+                                    <span class="upload-icon">📤</span>
+                                    <span>Click to upload or drag & drop</span>
+                                    <small>Character, product, or style reference</small>
+                                </div>
+                                <img id="referencePreview" class="reference-preview hidden" alt="Reference">
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearReference()" id="clearRefBtn" style="display:none">✕ Clear</button>
+                        </div>
+                        <small>Upload an image to create variations based on it</small>
+                    </div>
+
                     <div class="form-group">
                         <label>🎯 Dataset Theme</label>
                         <input type="text" id="theme" placeholder="Ex: portraits of diverse people, landscape photography, cute animals...">
                     </div>
                     
-                    <div class="form-group">
+                    <!-- Transformation (only for pair mode) -->
+                    <div id="transformationSection" class="form-group">
                         <label>🔄 Transformation to Learn</label>
                         <textarea id="transformation" rows="2" placeholder="Ex: progressively zoom out from close-up to full body shot, keeping the subject centered"></textarea>
                     </div>
 
-                    <div class="form-group">
+                    <!-- Action Name (only for pair mode) -->
+                    <div id="actionNameSection" class="form-group">
                         <label>🏷️ Action Name <small style="opacity: 0.6">(optional - AI will generate)</small></label>
                         <input type="text" id="actionName" placeholder="Leave empty for AI to generate, or: unzoom, zoom_out...">
                     </div>
@@ -117,8 +159,18 @@
                         <input type="text" id="triggerWord" placeholder="e.g., MYZOOM, MYSTYLE...">
                     </div>
 
+                    <!-- Custom System Prompt -->
                     <div class="form-group">
-                        <label>📊 Number of Pairs (max 40)</label>
+                        <label>🧠 Custom System Prompt</label>
+                        <div id="systemPromptSection" class="collapsible-content">
+                            <textarea id="customSystemPrompt" rows="4" placeholder="Customize the AI prompt generation behavior..."></textarea>
+                            <small>Leave empty for default. This controls how the AI generates creative prompts for your dataset.</small>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="resetSystemPrompt()" style="margin-top: 8px;">↻ Reset to Default</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>📊 Number of <span id="pairOrImageLabel">Pairs</span> (max 40)</label>
                         <input type="number" id="numPairs" value="10" min="1" max="40">
                         <small>Estimated cost: <span id="costEstimate">~$3.00</span></small>
                     </div>
@@ -147,7 +199,7 @@
                             <div class="progress-fill" id="progressFill"></div>
                         </div>
                         <div class="progress-text">
-                            <span id="progressCurrent">0</span> / <span id="progressTotal">0</span> pairs
+                            <span id="progressCurrent">0</span> / <span id="progressTotal">0</span> <span id="progressLabel">pairs</span>
                         </div>
                         <div class="progress-status" id="progressStatus">Initializing...</div>
                     </div>
@@ -197,5 +249,3 @@
     <script type="module" src="app.js"></script>
 </body>
 </html>
-
-
