@@ -14,9 +14,112 @@ const state = {
     isGenerating: false,
     pairs: [], // Store generated pairs/images in memory
     pairCounter: 0,
-    mode: 'pair', // 'pair', 'single', or 'reference'
+    mode: 'pair', // 'pair', 'single', 'reference', or 'layered'
     referenceImageUrl: null, // URL of uploaded reference image
     referenceImageBase64: null // Base64 of uploaded reference image
+};
+
+// Layered mode presets - complete form configurations
+// IMPORTANT: All presets use 1:1 aspect ratio and 2x2 grid (4 elements) to ensure square cells when splitting
+const LAYERED_PRESETS = {
+    character: {
+        name: 'Character Design',
+        elements: [
+            'anime character head with detailed face, hair, and expression, front view, centered, on pure white background',
+            'torso with detailed clothing, shirt or jacket, front view, centered, on pure white background',
+            'legs with pants or skirt, detailed fabric texture, front view, centered, on pure white background',
+            'feet with stylish shoes or boots, detailed footwear, front view, centered, on pure white background'
+        ],
+        finalPrompt: 'complete full body anime character standing in confident pose, front view, cohesive style, professional character art, centered composition',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'CHARDESIGN',
+        numSets: 5
+    },
+    architecture: {
+        name: 'Architecture',
+        elements: [
+            'modern luxury house or villa, detailed facade with windows doors and roof, architectural rendering style, centered, on pure white background',
+            'green trees and landscaping vegetation, realistic bushes and plants, garden elements, centered, on pure white background',
+            'people walking or standing in casual clothing, lifestyle figures, realistic scale, centered, on pure white background',
+            'modern car parked, SUV or sedan with details, realistic vehicle, centered, on pure white background'
+        ],
+        finalPrompt: 'complete architectural visualization, modern luxury house exterior with landscaping garden, people walking, car parked in driveway, blue sky background, professional real estate photography',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'ARCHVIZ',
+        numSets: 5
+    },
+    food: {
+        name: 'Food Composition',
+        elements: [
+            'main protein ingredient like steak or fish, cooked to perfection, detailed texture, centered, on pure white background',
+            'side dish like roasted vegetables or rice, colorful and fresh, centered, on pure white background',
+            'garnish and herbs, fresh parsley basil or microgreens, decorative, centered, on pure white background',
+            'sauce or dressing drizzle, glossy and appetizing, artistic splash, centered, on pure white background'
+        ],
+        finalPrompt: 'complete gourmet plated dish, professional food photography, elegant presentation on white plate, soft lighting, restaurant quality, top view',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'FOODPHOTO',
+        numSets: 5
+    },
+    interior: {
+        name: 'Interior Design',
+        elements: [
+            'main furniture piece like modern sofa or bed, elegant design, detailed upholstery, centered, on pure white background',
+            'secondary furniture like coffee table or side table, matching minimalist style, centered, on pure white background',
+            'decorative items like vases lamp or artwork, stylish home accessories, centered, on pure white background',
+            'indoor plant in ceramic pot, lush green foliage, adds life to space, centered, on pure white background'
+        ],
+        finalPrompt: 'complete modern interior living room scene, cohesive Scandinavian design, natural lighting from window, interior design magazine quality, architectural digest style',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'INTERIOR',
+        numSets: 5
+    },
+    fashion: {
+        name: 'Fashion/Outfit',
+        elements: [
+            'stylish designer top or blouse, detailed fabric texture and design, fashion photography style, centered, on pure white background',
+            'bottom garment like tailored pants or elegant skirt, matching style, detailed texture, centered, on pure white background',
+            'fashionable designer shoes or heels, luxury footwear with details, centered, on pure white background',
+            'fashion accessory like designer handbag or statement jewelry, luxury brand style, centered, on pure white background'
+        ],
+        finalPrompt: 'complete fashion outfit flat lay arrangement, editorial style, professional fashion photography, vogue magazine quality, studio lighting, white background',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'FASHION',
+        numSets: 5
+    },
+    product: {
+        name: 'Product Photography',
+        elements: [
+            'main product hero shot, sleek modern design, detailed and sharp, commercial photography, centered, on pure white background',
+            'product packaging or premium box, branded and professional design, centered, on pure white background',
+            'product accessory or complementary attachment, matching style, centered, on pure white background',
+            'brand logo badge or label element, subtle elegant branding, centered, on pure white background'
+        ],
+        finalPrompt: 'complete product photography composition with all elements arranged, commercial studio lighting, e-commerce quality, Amazon hero image style, clean white background',
+        aspectRatio: '1:1',
+        resolution: '2K',
+        triggerWord: 'PRODUCT',
+        numSets: 5
+    },
+    custom: {
+        name: 'Custom',
+        elements: [
+            'element 1 description, centered, on pure white background',
+            'element 2 description, centered, on pure white background', 
+            'element 3 description, centered, on pure white background', 
+            'element 4 description, centered, on pure white background'
+        ],
+        finalPrompt: 'complete assembled image with all elements combined cohesively, professional quality',
+        aspectRatio: '1:1',
+        resolution: '1K',
+        triggerWord: '',
+        numSets: 3
+    }
 };
 
 // Default system prompts for each mode
@@ -41,7 +144,14 @@ RULES:
 RULES:
 1. Each prompt must be unique while maintaining consistency with the reference
 2. prompt: Detailed description for generating a variation that preserves key elements of the reference
-3. Vary poses, angles, backgrounds, lighting, and contexts while keeping the subject recognizable`
+3. Vary poses, angles, backgrounds, lighting, and contexts while keeping the subject recognizable`,
+
+    layered: `You are a creative prompt engineer for AI image generation. Generate prompts for creating grid images with separated elements that will be assembled into a final composition.
+
+RULES:
+1. Each element prompt should describe ONE specific isolated element on a plain white background
+2. Elements should be designed to work together when assembled
+3. Be specific about the style, colors, and details to maintain consistency across elements`
 };
 
 // =============================================================================
@@ -116,32 +226,44 @@ function setMode(mode) {
         btn.classList.toggle('active', btn.dataset.mode === mode);
     });
     
-    // Show/hide transformation section (only for pair mode)
+    // Show/hide sections based on mode
     const transformSection = document.getElementById('transformationSection');
     const actionSection = document.getElementById('actionNameSection');
     const referenceSection = document.getElementById('referenceUploadSection');
+    const layeredSection = document.getElementById('layeredSection');
+    const themeSection = document.getElementById('themeSection');
+    
+    // Hide all optional sections first
+    transformSection.classList.add('hidden');
+    actionSection.classList.add('hidden');
+    referenceSection.classList.add('hidden');
+    if (layeredSection) layeredSection.classList.add('hidden');
+    if (themeSection) themeSection.classList.remove('hidden');
     
     if (mode === 'pair') {
         transformSection.classList.remove('hidden');
         actionSection.classList.remove('hidden');
-        referenceSection.classList.add('hidden');
         document.getElementById('pairOrImageLabel').textContent = 'Pairs';
         document.getElementById('countLabel').textContent = 'pairs in memory';
         document.getElementById('progressLabel').textContent = 'pairs';
     } else if (mode === 'single') {
-        transformSection.classList.add('hidden');
-        actionSection.classList.add('hidden');
-        referenceSection.classList.add('hidden');
         document.getElementById('pairOrImageLabel').textContent = 'Images';
         document.getElementById('countLabel').textContent = 'images in memory';
         document.getElementById('progressLabel').textContent = 'images';
     } else if (mode === 'reference') {
-        transformSection.classList.add('hidden');
-        actionSection.classList.add('hidden');
         referenceSection.classList.remove('hidden');
         document.getElementById('pairOrImageLabel').textContent = 'Images';
         document.getElementById('countLabel').textContent = 'images in memory';
         document.getElementById('progressLabel').textContent = 'images';
+    } else if (mode === 'layered') {
+        if (layeredSection) layeredSection.classList.remove('hidden');
+        if (themeSection) themeSection.classList.add('hidden');
+        document.getElementById('pairOrImageLabel').textContent = 'Sets';
+        document.getElementById('countLabel').textContent = 'layered sets in memory';
+        document.getElementById('progressLabel').textContent = 'sets';
+        
+        // Auto-fill the form with the current preset when switching to layered mode
+        updateLayeredPreset();
     }
     
     // Update cost estimate
@@ -321,6 +443,192 @@ async function captionImage(imageUrl, model) {
 }
 
 // =============================================================================
+// Layered Mode Functions
+// =============================================================================
+
+function updateLayeredPreset() {
+    const useCase = document.getElementById('layeredUseCase').value;
+    const preset = LAYERED_PRESETS[useCase];
+    const gridLayout = document.getElementById('gridLayout');
+    
+    // Fill Elements Description
+    const elementsText = preset.elements.map((el, i) => `Element ${i + 1}: ${el}`).join('\n');
+    document.getElementById('elementsDescription').value = elementsText;
+    
+    // Fill Final Image Description
+    document.getElementById('finalImageDescription').value = preset.finalPrompt;
+    
+    // IMPORTANT: Always use 2x2 grid with 1:1 aspect ratio to ensure square cells
+    // This guarantees each split element is also 1:1 (square)
+    gridLayout.value = '2x2';
+    
+    // Force 1:1 aspect ratio for proper grid splitting (square cells)
+    document.getElementById('aspectRatio').value = '1:1';
+    
+    // Fill Resolution
+    if (preset.resolution) {
+        document.getElementById('resolution').value = preset.resolution;
+    }
+    
+    // Fill Trigger Word
+    if (preset.triggerWord !== undefined) {
+        document.getElementById('triggerWord').value = preset.triggerWord;
+    }
+    
+    // Fill Number of Sets
+    if (preset.numSets) {
+        document.getElementById('numPairs').value = preset.numSets;
+    }
+    
+    updateCostEstimate();
+}
+
+function getGridDimensions() {
+    // Fixed to 2x2 grid for 1:1 square cells
+    // This ensures each split element is also square (1:1)
+    return { cols: 2, rows: 2, total: 4 };
+}
+
+async function removeBackground(imageUrl) {
+    // Using Bria RMBG 2.0 - better quality and commercially safe
+    // https://fal.ai/models/fal-ai/bria/background/remove
+    const result = await falRequest('fal-ai/bria/background/remove', {
+        image_url: imageUrl
+    });
+    return result.image.url;
+}
+
+async function generateGridImage(elementPrompts, aspectRatio, resolution) {
+    // Create a grid prompt
+    const { cols, rows } = getGridDimensions();
+    const gridPrompt = `A ${cols}x${rows} grid of separate elements on white backgrounds, each cell clearly separated:
+${elementPrompts.map((p, i) => `Cell ${i + 1}: ${p}`).join(', ')}
+Clean grid layout, each element isolated in its own cell, white background, professional product photography style`;
+    
+    const result = await falRequest('fal-ai/nano-banana-pro', {
+        prompt: gridPrompt,
+        aspect_ratio: aspectRatio,
+        resolution: resolution,
+        num_images: 1
+    });
+    
+    return result.images[0].url;
+}
+
+async function splitGridIntoElements(gridImageUrl, cols, rows) {
+    // Fetch the image
+    const response = await fetch(gridImageUrl);
+    const blob = await response.blob();
+    
+    // Create image element
+    const img = await createImageBitmap(blob);
+    
+    const cellWidth = Math.floor(img.width / cols);
+    const cellHeight = Math.floor(img.height / rows);
+    
+    const elements = [];
+    
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            // Create canvas for this cell
+            const canvas = document.createElement('canvas');
+            canvas.width = cellWidth;
+            canvas.height = cellHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw the cell portion
+            ctx.drawImage(
+                img,
+                col * cellWidth, row * cellHeight, cellWidth, cellHeight,
+                0, 0, cellWidth, cellHeight
+            );
+            
+            // Convert to blob
+            const cellBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            
+            // Upload to FAL storage
+            const url = await fal.storage.upload(cellBlob);
+            elements.push(url);
+        }
+    }
+    
+    return elements;
+}
+
+async function assembleElements(elementUrls, finalPrompt, resolution) {
+    // Use the first element as base and edit with all others
+    const result = await falRequest('fal-ai/nano-banana-pro/edit', {
+        image_urls: elementUrls,
+        prompt: `Combine and assemble these elements into: ${finalPrompt}. Create a cohesive, professional final image.`,
+        aspect_ratio: 'auto',
+        resolution: resolution
+    });
+    
+    return result.images[0].url;
+}
+
+async function generateLayeredDatasetItem(index, total, theme, elementPrompts, finalPrompt, aspectRatio, resolution, useVision, llmModel, triggerWord) {
+    const { cols, rows, total: numElements } = getGridDimensions();
+    
+    addProgressLog(`🧩 [${index + 1}/${total}] Generating layered set...`, 'info');
+    
+    try {
+        // Step 1: Generate grid image
+        addProgressLog(`   [${index + 1}] Generating ${cols}x${rows} grid...`, 'info');
+        const gridUrl = await generateGridImage(elementPrompts, aspectRatio, resolution);
+        
+        // Step 2: Split grid into elements
+        addProgressLog(`   [${index + 1}] Splitting into ${numElements} elements...`, 'info');
+        const elementUrls = await splitGridIntoElements(gridUrl, cols, rows);
+        
+        // Step 3: Remove background from each element
+        addProgressLog(`   [${index + 1}] Removing backgrounds...`, 'info');
+        const transparentElements = [];
+        for (let i = 0; i < elementUrls.length; i++) {
+            try {
+                const transparentUrl = await removeBackground(elementUrls[i]);
+                transparentElements.push(transparentUrl);
+            } catch (e) {
+                console.warn(`Background removal failed for element ${i + 1}:`, e);
+                transparentElements.push(elementUrls[i]); // Use original if removal fails
+            }
+        }
+        
+        // Step 4: Assemble into final image
+        addProgressLog(`   [${index + 1}] Assembling final image...`, 'info');
+        const finalUrl = await assembleElements(transparentElements, finalPrompt, resolution);
+        
+        // Step 5: Caption if needed
+        let caption = finalPrompt;
+        if (useVision) {
+            try {
+                caption = await captionImage(finalUrl, llmModel);
+            } catch (e) {
+                console.warn('Vision caption failed:', e);
+            }
+        }
+        
+        if (triggerWord) {
+            caption = `${triggerWord} ${caption}`;
+        }
+        
+        addProgressLog(`   [${index + 1}] Layered set complete!`, 'success');
+        
+        return {
+            finalUrl,
+            gridUrl,
+            elementUrls: transparentElements,
+            elementPrompts,
+            finalPrompt,
+            caption
+        };
+    } catch (error) {
+        console.error(`Layered set ${index + 1} error:`, error);
+        throw new Error(error.message || error.toString() || 'Layered generation failed');
+    }
+}
+
+// =============================================================================
 // LLM Prompt Generation
 // =============================================================================
 
@@ -422,6 +730,46 @@ Return ONLY valid JSON array:
         }
         
         return JSON.parse(jsonMatch[0]);
+    } else if (state.mode === 'layered') {
+        // Layered mode - generate element prompts for grid
+        const { total: numElements } = getGridDimensions();
+        const elementsDesc = document.getElementById('elementsDescription')?.value || '';
+        const finalDesc = document.getElementById('finalImageDescription')?.value || '';
+        const useCase = document.getElementById('layeredUseCase')?.value || 'custom';
+        const preset = LAYERED_PRESETS[useCase];
+        
+        const systemPrompt = customSystemPrompt;
+
+        const userPrompt = `Generate ${numPrompts} unique sets of element prompts for creating layered compositions.
+Use case: ${preset.name}
+Number of elements per set: ${numElements}
+${elementsDesc ? `Element guidelines:\n${elementsDesc}` : ''}
+${finalDesc ? `Final image should be: ${finalDesc}` : ''}
+
+Each element should be described as an isolated object on a white background.
+
+Return ONLY valid JSON array:
+[
+  {
+    "elements": ["element 1 prompt on white background", "element 2 prompt on white background", ...],
+    "final_prompt": "description of how elements should be assembled into final image"
+  }
+]`;
+
+        const result = await falRequest('fal-ai/any-llm', {
+            model: model,
+            system_prompt: systemPrompt,
+            prompt: userPrompt,
+            max_tokens: 16000
+        });
+        
+        const text = result.output;
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+            throw new Error('Failed to parse LLM response');
+        }
+        
+        return JSON.parse(jsonMatch[0]);
     }
 }
 
@@ -448,10 +796,20 @@ function updateCostEstimate() {
     const useVision = document.getElementById('useVisionCaption').checked;
     const resolution = document.getElementById('resolution').value;
     
-    const imagesPerItem = state.mode === 'pair' ? 2 : 1; // Pair mode = 2 images, single/reference = 1
+    let imagesPerItem = state.mode === 'pair' ? 2 : 1; // Pair mode = 2 images, single/reference = 1
+    let extraCost = 0;
+    
+    if (state.mode === 'layered') {
+        const { total: numElements } = getGridDimensions();
+        // Layered: 1 grid image + 1 assembly image
+        imagesPerItem = 2;
+        // + background removals with Bria RMBG 2.0 (~$0.018 each)
+        extraCost = numElements * 0.018;
+    }
+    
     const imageCost = getImageCost();
-    const baseCost = numPairs * imagesPerItem * imageCost;
-    const visionCost = useVision ? numPairs * (state.mode === 'pair' ? 2 : 1) * 0.002 : 0;
+    const baseCost = numPairs * (imagesPerItem * imageCost + extraCost);
+    const visionCost = useVision ? numPairs * 0.002 : 0;
     const llmCost = 0.02;
     const total = baseCost + visionCost + llmCost;
     
@@ -496,7 +854,7 @@ function addResultCard(item) {
     const card = document.createElement('div');
     card.className = 'result-card';
     
-    if (state.mode === 'pair') {
+    if (item.mode === 'pair') {
         // Pair mode - show START and END images
         card.innerHTML = `
             <div class="result-header">
@@ -511,6 +869,32 @@ function addResultCard(item) {
                     <span class="label">END</span>
                     <img src="${item.endUrl}" alt="End" loading="lazy">
                 </div>
+            </div>
+        `;
+    } else if (item.mode === 'layered') {
+        // Layered mode - show final + grid + elements
+        const elementsHtml = item.elementUrls.map((url, i) => 
+            `<img src="${url}" alt="Layer ${i + 1}" title="Layer ${i + 1}" loading="lazy" style="max-width: 60px; max-height: 60px; border-radius: 4px;">`
+        ).join('');
+        
+        card.innerHTML = `
+            <div class="result-header">
+                <span class="result-id">#${item.id}</span>
+                <span class="result-badge">🧩 Layered</span>
+            </div>
+            <div class="result-images layered">
+                <div class="result-image">
+                    <span class="label">FINAL</span>
+                    <img src="${item.finalUrl}" alt="Final" loading="lazy">
+                </div>
+                <div class="result-image">
+                    <span class="label">GRID</span>
+                    <img src="${item.gridUrl}" alt="Grid" loading="lazy">
+                </div>
+            </div>
+            <div class="result-layers">
+                <span class="label">LAYERS (${item.elementUrls.length})</span>
+                <div class="layers-preview">${elementsHtml}</div>
             </div>
         `;
     } else {
@@ -676,7 +1060,7 @@ async function startGeneration() {
     const llmModel = document.getElementById('llmModel').value;
     
     // Validate based on mode
-    if (!theme) {
+    if (state.mode !== 'layered' && !theme) {
         alert('Please fill in the dataset theme');
         return;
     }
@@ -691,15 +1075,31 @@ async function startGeneration() {
         return;
     }
     
+    if (state.mode === 'layered') {
+        const finalDesc = document.getElementById('finalImageDescription')?.value?.trim();
+        if (!finalDesc) {
+            alert('Please fill in the final image description');
+            return;
+        }
+    }
+    
     if (!getApiKey()) {
         showApiKeyModal();
         return;
     }
     
     // Confirm
-    const imagesPerItem = state.mode === 'pair' ? 2 : 1;
+    let imagesPerItem = state.mode === 'pair' ? 2 : 1;
+    let modeLabel = state.mode === 'pair' ? 'pairs' : 'images';
+    
+    if (state.mode === 'layered') {
+        const { total: numElements } = getGridDimensions();
+        // Layered: 1 grid + numElements background removals + 1 assembly
+        imagesPerItem = 2 + numElements * 0.05; // Grid + assembly + bg removal costs
+        modeLabel = 'layered sets';
+    }
+    
     const cost = (numPairs * imagesPerItem * getImageCost() + 0.02).toFixed(2);
-    const modeLabel = state.mode === 'pair' ? 'pairs' : 'images';
     if (!confirm(`Generate ${numPairs} ${modeLabel}?\n\n⚡ ${maxConcurrent} parallel requests\n💰 Estimated cost: ~$${cost}\n\nImages stored in memory.\nUse "Download ZIP" to save.`)) {
         return;
     }
@@ -751,6 +1151,24 @@ async function startGeneration() {
                 results = await Promise.allSettled(
                     batch.map((p, batchIndex) => 
                         generateReferenceItem(p, i + batchIndex, prompts.length, referenceUrl, aspectRatio, resolution, useVision, llmModel, triggerWord)
+                    )
+                );
+            } else if (state.mode === 'layered') {
+                const useCase = document.getElementById('layeredUseCase')?.value || 'custom';
+                results = await Promise.allSettled(
+                    batch.map((p, batchIndex) => 
+                        generateLayeredDatasetItem(
+                            i + batchIndex, 
+                            prompts.length, 
+                            useCase, 
+                            p.elements, 
+                            p.final_prompt, 
+                            aspectRatio, 
+                            resolution, 
+                            useVision, 
+                            llmModel, 
+                            triggerWord
+                        )
                     )
                 );
             }
@@ -806,16 +1224,22 @@ async function downloadZIP() {
         return;
     }
     
-    showLoading(true, 'Creating ZIP...');
+    // IMPORTANT: Snapshot the pairs array to avoid issues with concurrent generations
+    // This ensures the ZIP contains exactly what was in memory when download was clicked
+    const pairsSnapshot = [...state.pairs];
+    const itemCount = pairsSnapshot.length;
+    
+    showLoading(true, `Creating ZIP with ${itemCount} items...`);
     
     try {
         // Dynamic import JSZip
         const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
         const zip = new JSZip();
         
-        // Download and add each item
-        for (let i = 0; i < state.pairs.length; i++) {
-            const item = state.pairs[i];
+        // Download and add each item from snapshot
+        for (let i = 0; i < pairsSnapshot.length; i++) {
+            const item = pairsSnapshot[i];
+            showLoading(true, `Adding item ${i + 1}/${itemCount} to ZIP...`);
             
             if (item.mode === 'pair' || (item.startUrl && item.endUrl)) {
                 // Pair mode - two images
@@ -825,6 +1249,20 @@ async function downloadZIP() {
                 zip.file(`${item.id}_start.png`, startBlob);
                 zip.file(`${item.id}_end.png`, endBlob);
                 zip.file(`${item.id}.txt`, item.text);
+            } else if (item.mode === 'layered') {
+                // Layered mode - Qwen format: ROOT_start.png (final) + ROOT_end.png, ROOT_end2.png... (layers)
+                const finalBlob = await fetch(item.finalUrl).then(r => r.blob());
+                zip.file(`${item.id}_start.png`, finalBlob);
+                
+                // Add each layer as _end, _end2, _end3, etc.
+                for (let j = 0; j < item.elementUrls.length; j++) {
+                    const layerBlob = await fetch(item.elementUrls[j]).then(r => r.blob());
+                    const suffix = j === 0 ? '_end.png' : `_end${j + 1}.png`;
+                    zip.file(`${item.id}${suffix}`, layerBlob);
+                }
+                
+                // Add caption
+                zip.file(`${item.id}.txt`, item.caption);
             } else {
                 // Single/Reference mode - one image
                 const imageBlob = await fetch(item.imageUrl).then(r => r.blob());
@@ -835,11 +1273,16 @@ async function downloadZIP() {
         }
         
         // Generate and download
+        showLoading(true, 'Compressing ZIP...');
         const content = await zip.generateAsync({ type: 'blob' });
         const url = URL.createObjectURL(content);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `nanobanana_dataset_${Date.now()}.zip`;
+        
+        // Use appropriate filename based on mode
+        const hasLayered = pairsSnapshot.some(p => p.mode === 'layered');
+        const filename = hasLayered ? `qwen_layered_dataset_${Date.now()}.zip` : `nanobanana_dataset_${Date.now()}.zip`;
+        a.download = filename;
         a.click();
         URL.revokeObjectURL(url);
         
@@ -879,6 +1322,13 @@ function init() {
     document.getElementById('numPairs').addEventListener('input', updateCostEstimate);
     document.getElementById('useVisionCaption').addEventListener('change', updateCostEstimate);
     document.getElementById('resolution').addEventListener('change', updateCostEstimate);
+    
+    // Layered mode listeners
+    const gridLayout = document.getElementById('gridLayout');
+    if (gridLayout) {
+        gridLayout.addEventListener('change', updateCostEstimate);
+    }
+    
     updateCostEstimate();
     
     // Initialize mode
@@ -923,5 +1373,6 @@ window.toggleSystemPrompt = toggleSystemPrompt;
 window.resetSystemPrompt = resetSystemPrompt;
 window.handleReferenceUpload = handleReferenceUpload;
 window.clearReference = clearReference;
+window.updateLayeredPreset = updateLayeredPreset;
 
 document.addEventListener('DOMContentLoaded', init);

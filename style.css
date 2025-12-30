@@ -242,9 +242,24 @@ textarea {
 /* Mode Selector */
 .mode-selector {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: var(--space-sm);
     margin-top: var(--space-xs);
+}
+
+/* Layered Info Box */
+.layered-info {
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.05));
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+}
+
+.layered-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
 }
 
 .mode-btn {
@@ -678,4 +693,44 @@ textarea {
 @media (max-width: 900px) {
     .main-content { grid-template-columns: 1fr; }
     .sidebar { max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+/* Layered Mode Results */
+.result-images.layered {
+    grid-template-columns: 1fr 1fr;
+}
+
+.result-layers {
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border);
+}
+
+.result-layers .label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-xs);
+    display: block;
+}
+
+.layers-preview {
+    display: flex;
+    gap: var(--space-xs);
+    flex-wrap: wrap;
+}
+
+.layers-preview img {
+    border: 1px solid var(--border);
+    background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 10px 10px;
+}
+
+.result-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(96, 165, 250, 0.1));
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--info);
 }

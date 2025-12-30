@@ -116,6 +116,47 @@
                                 <span class="mode-label">Reference Image</span>
                                 <span class="mode-desc">Variations from uploaded image</span>
                             </button>
+                            <button type="button" class="mode-btn" data-mode="layered" onclick="setMode('layered')">
+                                <span class="mode-icon">🧩</span>
+                                <span class="mode-label">Layered Grid</span>
+                                <span class="mode-desc">For Qwen Image Layered</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Layered Grid Settings (hidden by default) -->
+                    <div id="layeredSection" class="form-group hidden">
+                        <div class="layered-info">
+                            <p>🧩 <strong>Qwen Image Layered</strong>: Generate 2×2 grid (1:1) → Split into 4 square elements → Remove backgrounds → Assemble final image</p>
+                        </div>
+                        
+                        <label>🎨 Use Case</label>
+                        <select id="layeredUseCase" onchange="updateLayeredPreset()">
+                            <option value="character">🎮 Character Design (head, body, legs, accessories)</option>
+                            <option value="architecture">🏠 Architecture (house, trees, people, landscape)</option>
+                            <option value="food">🍔 Food Composition (ingredients → dish)</option>
+                            <option value="interior">🛋️ Interior Design (furniture → room)</option>
+                            <option value="fashion">👗 Fashion/Outfit (clothes → complete look)</option>
+                            <option value="product">📦 Product Photography (product parts → final)</option>
+                            <option value="custom">✏️ Custom (define your own)</option>
+                        </select>
+                        
+                        <div style="margin-top: 12px;">
+                            <label>📐 Grid Layout</label>
+                            <select id="gridLayout" disabled>
+                                <option value="2x2">2×2 (4 elements) - Square cells</option>
+                            </select>
+                            <small style="opacity: 0.7;">Fixed to 2×2 for 1:1 square elements</small>
+                        </div>
+                        
+                        <div style="margin-top: 12px;">
+                            <label>📝 Elements Description <small style="opacity: 0.6">(AI will generate if empty)</small></label>
+                            <textarea id="elementsDescription" rows="3" placeholder="Describe each element, one per line:&#10;Element 1: anime character head with blue hair&#10;Element 2: torso with white shirt&#10;Element 3: legs with black pants&#10;Element 4: sneakers"></textarea>
+                        </div>
+                        
+                        <div style="margin-top: 12px;">
+                            <label>🎯 Final Image Description</label>
+                            <input type="text" id="finalImageDescription" placeholder="e.g., complete anime character standing, full body view">
                         </div>
                     </div>
 
@@ -137,7 +178,7 @@
                         <small>Upload an image to create variations based on it</small>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="themeSection">
                         <label>🎯 Dataset Theme</label>
                         <input type="text" id="theme" placeholder="Ex: portraits of diverse people, landscape photography, cute animals...">
                     </div>
