@@ -260,25 +260,33 @@ async function uploadReferenceImage() {
 // FAL API Calls using official SDK
 // =============================================================================
 
-async function falRequest(endpoint, input) {
+async function falRequest(endpoint, input, maxRetries = 3) {
     const apiKey = getApiKey();
     if (!apiKey) {
         throw new Error('Please add your FAL API key first');
     }
-    
-    // Ensure FAL is configured
+
     fal.config({ credentials: apiKey });
-    
-    try {
-        // Use FAL's subscribe method which handles queuing
-        // Returns { data, requestId } - we want data
-        console.log(`FAL request to ${endpoint}:`, input);
-        const result = await fal.subscribe(endpoint, { input });
-        console.log(`FAL response from ${endpoint}:`, result);
-        return result.data || result;
-    } catch (error) {
-        console.error(`FAL error for ${endpoint}:`, error);
-        throw new Error(error.message || error.body?.detail || 'FAL API call failed');
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`FAL request to ${endpoint} (attempt ${attempt}):`, input);
+            const result = await fal.subscribe(endpoint, { input });
+            console.log(`FAL response from ${endpoint}:`, result);
+            return result.data || result;
+        } catch (error) {
+            const isTimeout = error.status === 408 || (error.message && error.message.includes('408'));
+            const isRetryable = isTimeout || error.status === 429 || error.status >= 500;
+
+            if (isRetryable && attempt < maxRetries) {
+                const delay = attempt * 2000;
+                console.warn(`FAL ${endpoint} attempt ${attempt} failed (${error.status || error.message}), retrying in ${delay}ms...`);
+                await sleep(delay);
+                continue;
+            }
+            console.error(`FAL error for ${endpoint}:`, error);
+            throw new Error(error.message || error.body?.detail || 'FAL API call failed');
+        }
     }
 }
 
@@ -556,11 +564,11 @@ function addResultCard(item) {
             <div class="result-images">
                 <div class="result-image">
                     <span class="label">START</span>
-                    <img src="${item.startUrl}" alt="Start" loading="lazy">
+                    <img src="${item.startUrl}" alt="Start" loading="eager">
                 </div>
                 <div class="result-image">
                     <span class="label">END</span>
-                    <img src="${item.endUrl}" alt="End" loading="lazy">
+                    <img src="${item.endUrl}" alt="End" loading="eager">
                 </div>
             </div>
         `;
@@ -572,13 +580,14 @@ function addResultCard(item) {
             </div>
             <div class="result-images single">
                 <div class="result-image">
-                    <img src="${item.imageUrl}" alt="Generated" loading="lazy">
+                    <img src="${item.imageUrl}" alt="Generated" loading="eager">
                 </div>
             </div>
         `;
     }
     
     container.insertBefore(card, container.firstChild);
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function truncate(str, length) {
