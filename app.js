@@ -364,7 +364,17 @@ async function captionImage(imageUrl, model) {
     return result.output;
 }
 
+async function captionEditPair(startUrl, endUrl, model) {
+    const result = await falRequest('openrouter/router/vision', {
+        model: model,
+        prompt: "You are looking at two images: the BEFORE (first) and AFTER (second). Describe the edit/transformation that was applied to go from the first image to the second. Be concise and specific. Example: 'Replace the background with a sunset beach' or 'Add a vintage film grain filter'.",
+        system_prompt: "Only describe the transformation between the two images in one sentence. Don't use markdown. Be direct and concise.",
+        image_urls: [startUrl, endUrl],
+        temperature: 0.5
+    });
 
+    return result.output;
+}
 
 // =============================================================================
 // LLM Prompt Generation
@@ -613,11 +623,11 @@ async function generateSinglePair(prompt, index, total, aspectRatio, resolution,
         const endUrl = await generateEndImage(startUrl, prompt.edit_prompt, aspectRatio, resolution);
         addProgressLog(`   [${index + 1}] END done!`, 'info');
         
-        // Optional: Caption with vision
+        // Caption: describe the transformation between START and END
         let finalText = prompt.action_name;
         if (useVision) {
             try {
-                const caption = await captionImage(endUrl, llmModel);
+                const caption = await captionEditPair(startUrl, endUrl, llmModel);
                 finalText = caption;
             } catch (e) {
                 console.warn('Vision caption failed:', e);
@@ -799,11 +809,11 @@ async function generateImportEditItem(importedImage, transformation, index, tota
         const endUrl = await generateEndImage(startUrl, transformation, 'auto', resolution);
         addProgressLog(`   [${index + 1}] Edit done!`, 'info');
 
-        // Generate caption
+        // Generate caption describing the edit/transformation
         let finalText = transformation;
         if (useVision) {
             try {
-                const caption = await captionImage(endUrl, llmModel);
+                const caption = await captionEditPair(startUrl, endUrl, llmModel);
                 finalText = caption;
             } catch (e) {
                 console.warn('Vision caption failed:', e);
