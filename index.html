@@ -76,12 +76,30 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Image Model</label>
+                        <select id="imageModel">
+                            <option value="nano-banana-pro">Nano Banana Pro (high quality)</option>
+                            <option value="nano-banana-2">Nano Banana 2 (fast)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label>LLM/Vision Model</label>
                         <select id="llmModel">
-                            <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (fast)</option>
-                            <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
-                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                            <option value="openai/gpt-4o">GPT-4o</option>
+                            <optgroup label="— Recent —">
+                                <option value="google/gemini-3-flash-preview">Gemini 3 Flash (fast)</option>
+                                <option value="google/gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+                                <option value="anthropic/claude-sonnet-4.6">Claude Sonnet 4.6</option>
+                                <option value="openai/gpt-5.4-mini">GPT-5.4 Mini</option>
+                                <option value="openai/gpt-5.4">GPT-5.4</option>
+                                <option value="qwen/qwen3.5-plus-02-15">Qwen 3.5 Plus</option>
+                            </optgroup>
+                            <optgroup label="— Classic —">
+                                <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                <option value="google/gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+                                <option value="openai/gpt-4o">GPT-4o</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -116,49 +134,14 @@
                                 <span class="mode-label">Reference Image</span>
                                 <span class="mode-desc">Variations from uploaded image</span>
                             </button>
-                            <button type="button" class="mode-btn" data-mode="layered" onclick="setMode('layered')">
-                                <span class="mode-icon">🧩</span>
-                                <span class="mode-label">Layered Grid</span>
-                                <span class="mode-desc">For Qwen Image Layered</span>
+                            <button type="button" class="mode-btn" data-mode="import-edit" onclick="setMode('import-edit')">
+                                <span class="mode-icon">📂</span>
+                                <span class="mode-label">Import + Edit</span>
+                                <span class="mode-desc">Edit your own images</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Layered Grid Settings (hidden by default) -->
-                    <div id="layeredSection" class="form-group hidden">
-                        <div class="layered-info">
-                            <p>🧩 <strong>Qwen Image Layered</strong>: Generate 2×2 grid (1:1) → Split into 4 square elements → Remove backgrounds → Assemble final image</p>
-                        </div>
-                        
-                        <label>🎨 Use Case</label>
-                        <select id="layeredUseCase" onchange="updateLayeredPreset()">
-                            <option value="character">🎮 Character Design (head, body, legs, accessories)</option>
-                            <option value="architecture">🏠 Architecture (house, trees, people, landscape)</option>
-                            <option value="food">🍔 Food Composition (ingredients → dish)</option>
-                            <option value="interior">🛋️ Interior Design (furniture → room)</option>
-                            <option value="fashion">👗 Fashion/Outfit (clothes → complete look)</option>
-                            <option value="product">📦 Product Photography (product parts → final)</option>
-                            <option value="custom">✏️ Custom (define your own)</option>
-                        </select>
-                        
-                        <div style="margin-top: 12px;">
-                            <label>📐 Grid Layout</label>
-                            <select id="gridLayout" disabled>
-                                <option value="2x2">2×2 (4 elements) - Square cells</option>
-                            </select>
-                            <small style="opacity: 0.7;">Fixed to 2×2 for 1:1 square elements</small>
-                        </div>
-                        
-                        <div style="margin-top: 12px;">
-                            <label>📝 Elements Description <small style="opacity: 0.6">(AI will generate if empty)</small></label>
-                            <textarea id="elementsDescription" rows="3" placeholder="Describe each element, one per line:&#10;Element 1: anime character head with blue hair&#10;Element 2: torso with white shirt&#10;Element 3: legs with black pants&#10;Element 4: sneakers"></textarea>
-                        </div>
-                        
-                        <div style="margin-top: 12px;">
-                            <label>🎯 Final Image Description</label>
-                            <input type="text" id="finalImageDescription" placeholder="e.g., complete anime character standing, full body view">
-                        </div>
-                    </div>
 
                     <!-- Reference Image Upload (hidden by default) -->
                     <div id="referenceUploadSection" class="form-group hidden">
@@ -176,6 +159,28 @@
                             <button type="button" class="btn btn-secondary btn-sm" onclick="clearReference()" id="clearRefBtn" style="display:none">✕ Clear</button>
                         </div>
                         <small>Upload an image to create variations based on it</small>
+                    </div>
+
+                    <!-- Import + Edit Section (hidden by default) -->
+                    <div id="importEditSection" class="form-group hidden">
+                        <label>📂 Import Images</label>
+                        <div class="import-upload">
+                            <div class="upload-zone" id="importUploadZone" onclick="document.getElementById('importInput').click()">
+                                <input type="file" id="importInput" accept="image/*" multiple webkitdirectory style="display:none" onchange="handleImportUpload(event)">
+                                <div class="upload-placeholder" id="importPlaceholder">
+                                    <span class="upload-icon">📂</span>
+                                    <span>Click to select a folder of images</span>
+                                    <small>All images in the folder will be imported</small>
+                                </div>
+                            </div>
+                            <div id="importPreviewList" class="import-preview-list hidden"></div>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearImportedImages()" id="clearImportBtn" style="display:none">✕ Clear All</button>
+                        </div>
+
+                        <div style="margin-top: 12px;">
+                            <label>🔄 Transformation to Apply</label>
+                            <textarea id="importTransformation" rows="2" placeholder="Ex: replace the background with a tropical beach sunset, add a soft vintage filter..."></textarea>
+                        </div>
                     </div>
 
                     <div class="form-group" id="themeSection">
